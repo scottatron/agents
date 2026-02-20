@@ -156,6 +156,48 @@ export async function removeMcpServer(args: {
   return true
 }
 
+export async function setMcpServerEnabled(args: {
+  projectRoot?: string
+  name: string
+  enabled: boolean
+  global?: boolean
+}): Promise<void> {
+  if (args.global) {
+    const globalConfig = await loadGlobalConfig()
+    const exists = Object.prototype.hasOwnProperty.call(globalConfig.mcpServers, args.name)
+    if (!exists) {
+      throw new Error(`MCP server "${args.name}" does not exist in global config.`)
+    }
+    globalConfig.mcpServers[args.name].enabled = args.enabled
+    await saveGlobalConfig(globalConfig)
+    return
+  }
+
+  const state = await loadMcpState(args.projectRoot!)
+  const inProject = Object.prototype.hasOwnProperty.call(state.config.mcp.servers, args.name)
+  const inGlobal = Object.prototype.hasOwnProperty.call(state.global.mcpServers, args.name)
+
+  if (!inProject && !inGlobal) {
+    throw new Error(`MCP server "${args.name}" does not exist.`)
+  }
+
+  if (inGlobal) {
+    const globalEnabled = state.global.mcpServers[args.name].enabled !== false
+    if (args.enabled === globalEnabled) {
+      // Requested state matches global — remove redundant project override
+      delete state.config.mcp.servers[args.name]
+    } else {
+      state.config.mcp.servers[args.name] = {
+        ...state.config.mcp.servers[args.name],
+        enabled: args.enabled
+      }
+    }
+  } else {
+    state.config.mcp.servers[args.name].enabled = args.enabled
+  }
+  await saveAgentsConfig(args.projectRoot!, state.config)
+}
+
 export function listMcpEntries(state: McpState): McpServerEntry[] {
   const globalServers = state.global?.mcpServers ?? {}
   const projectServers = state.config.mcp.servers

@@ -8,6 +8,7 @@ import { runMcpAdd } from './commands/mcp-add.js'
 import { runMcpImport } from './commands/mcp-import.js'
 import { runMcpList } from './commands/mcp-list.js'
 import { runMcpRemove } from './commands/mcp-remove.js'
+import { runMcpEnable } from './commands/mcp-enable.js'
 import { runMcpSelect } from './commands/mcp-select.js'
 import { runMcpTest } from './commands/mcp-test.js'
 import { runReset } from './commands/reset.js'
@@ -321,6 +322,38 @@ async function main(): Promise<void> {
         projectRoot: resolvePath(opts.path),
         name,
         ignoreMissing: Boolean(opts.ignoreMissing),
+        noSync: Boolean(opts.noSync),
+        global: Boolean(opts.global)
+      })
+    })
+
+  mcp
+    .command('enable <name>')
+    .description('Enable an MCP server')
+    .option('--path <dir>', 'Target project directory', process.cwd())
+    .option('--no-sync', 'Skip automatic sync after update', false)
+    .option('--global', 'Enable in global config (~/.agents/global.json)', false)
+    .action(async (name: string, opts: { path: string; noSync: boolean; global: boolean }) => {
+      await runMcpEnable({
+        projectRoot: resolvePath(opts.path),
+        name,
+        enabled: true,
+        noSync: Boolean(opts.noSync),
+        global: Boolean(opts.global)
+      })
+    })
+
+  mcp
+    .command('disable <name>')
+    .description('Disable an MCP server')
+    .option('--path <dir>', 'Target project directory', process.cwd())
+    .option('--no-sync', 'Skip automatic sync after update', false)
+    .option('--global', 'Disable in global config (~/.agents/global.json)', false)
+    .action(async (name: string, opts: { path: string; noSync: boolean; global: boolean }) => {
+      await runMcpEnable({
+        projectRoot: resolvePath(opts.path),
+        name,
+        enabled: false,
         noSync: Boolean(opts.noSync),
         global: Boolean(opts.global)
       })
