@@ -6,7 +6,8 @@ import { ensureProjectGitignore } from '../core/gitignore.js'
 import { initializeProjectSkeleton } from '../core/project.js'
 import { performSync } from '../core/sync.js'
 import { commandExists } from '../core/shell.js'
-import type { IntegrationName, SyncMode } from '../types.js'
+import { loadGlobalConfig, saveAgentsConfig, loadAgentsConfig } from '../core/config.js'
+import type { IntegrationName, SyncMode, McpServerDefinition } from '../types.js'
 import { INTEGRATIONS } from '../integrations/registry.js'
 import { getProjectPaths } from '../core/paths.js'
 import { runReset } from './reset.js'
@@ -68,6 +69,15 @@ export async function runStart(options: StartOptions): Promise<void> {
     ? await selectSyncMode(defaults.syncMode)
     : defaults.syncMode
 
+  const globalConfig = await loadGlobalConfig()
+  const globalServerNames = Object.keys(globalConfig.mcpServers)
+  let globalMcpOverrides: Record<string, Partial<McpServerDefinition>> = {}
+
+  if (interactive && globalServerNames.length > 0) {
+    const selected = await selectGlobalMcpServers(globalConfig.mcpServers)
+    globalMcpOverrides = buildGlobalMcpOverrides(globalConfig.mcpServers, selected)
+  }
+
   if (interactive) {
     const proceed = await confirmOrCancel({
       message: 'Apply this setup now?',
@@ -91,6 +101,14 @@ export async function runStart(options: StartOptions): Promise<void> {
     hideGeneratedInVscode
   })
 
+  if (Object.keys(globalMcpOverrides).length > 0) {
+    const config = await loadAgentsConfig(projectRoot)
+    for (const [name, override] of Object.entries(globalMcpOverrides)) {
+      config.mcp.servers[name] = { ...config.mcp.servers[name], ...override }
+    }
+    await saveAgentsConfig(projectRoot, config)
+  }
+
   await ensureProjectGitignore(projectRoot, syncMode)
 
   const sync = await performSync({
@@ -111,7 +129,14 @@ export async function runStart(options: StartOptions): Promise<void> {
     `Antigravity sync: ${access.summaries.antigravity}`,
     `Windsurf sync: ${access.summaries.windsurf}`,
     `OpenCode sync: ${access.summaries.opencode}`,
-    `Created/updated: ${init.changed.length}`
+    `Created/updated: ${init.changed.length}`,
+    ...(globalServerNames.length > 0
+      ? (() => {
+          const disabledCount = Object.keys(globalMcpOverrides).length
+          const enabledCount = globalServerNames.length - disabledCount
+          return [`Global MCP servers: ${String(enabledCount)} enabled, ${String(disabledCount)} disabled`]
+        })()
+      : [])
   ]
 
   const normalizedWarnings = normalizeWarnings([...init.warnings, ...sync.warnings])
@@ -361,6 +386,52 @@ async function selectSyncMode(defaultSyncMode: SyncMode): Promise<SyncMode> {
   }
 
   return value as SyncMode
+}
+
+async function selectGlobalMcpServers(
+  globalServers: Record<string, McpServerDefinition>
+): Promise<string[]> {
+  const entries = Object.entries(globalServers)
+  const value = await clack.multiselect({
+    message: 'Choose global MCP servers to enable for this project',
+    required: false,
+    options: entries.map(([name, server]) => {
+      const transport = server.transport ?? 'stdio'
+      const detail = transport === 'stdio' ? server.command ?? '' : server.url ?? ''
+      return {
+        value: name,
+        label: server.label ?? name,
+        hint: detail ? `${transport} · ${detail}` : transport
+      }
+    }),
+    initialValues: entries
+      .filter(([, server]) => server.enabled !== false)
+      .map(([name]) => name)
+  })
+
+  if (clack.isCancel(value)) {
+    clack.cancel('Setup canceled.')
+    process.exit(1)
+  }
+
+  return (value as string[]) ?? []
+}
+
+function buildGlobalMcpOverrides(
+  globalServers: Record<string, McpServerDefinition>,
+  selectedNames: string[]
+): Record<string, Partial<McpServerDefinition>> {
+  const overrides: Record<string, Partial<McpServerDefinition>> = {}
+  for (const [name, server] of Object.entries(globalServers)) {
+    const selected = selectedNames.includes(name)
+    const globallyEnabled = server.enabled !== false
+    if (selected && !globallyEnabled) {
+      overrides[name] = { enabled: true }
+    } else if (!selected && globallyEnabled) {
+      overrides[name] = { enabled: false }
+    }
+  }
+  return overrides
 }
 
 async function confirmOrCancel(args: { message: string; initialValue: boolean }): Promise<boolean> {

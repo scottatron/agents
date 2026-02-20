@@ -22,6 +22,8 @@ export async function runMcpList(options: McpListOptions): Promise<void> {
       enabled: entry.server.enabled !== false,
       targets: entry.server.targets ?? [],
       hasLocalOverride: entry.hasLocalOverride,
+      hasProjectOverride: entry.hasProjectOverride,
+      globalEnabled: entry.globalServer ? entry.globalServer.enabled !== false : null,
       description: entry.server.description ?? null,
       origin: entry.origin
     }))
@@ -52,12 +54,19 @@ export async function runMcpList(options: McpListOptions): Promise<void> {
     // Targets
     parts.push(`targets: ${targets}`)
 
-    // Origin
-    parts.push(server.origin)
-
-    // Status indicators
-    if (!server.enabled) {
-      parts.push('disabled')
+    // Origin + status
+    if (server.origin === 'global') {
+      const globalStatus = `global: ${server.globalEnabled ? 'enabled' : 'disabled'}`
+      if (server.hasProjectOverride) {
+        parts.push(`${globalStatus} (project: ${server.enabled ? 'enabled' : 'disabled'})`)
+      } else {
+        parts.push(globalStatus)
+      }
+    } else {
+      parts.push(server.origin)
+      if (!server.enabled) {
+        parts.push('disabled')
+      }
     }
     if (server.hasLocalOverride) {
       parts.push('local override')

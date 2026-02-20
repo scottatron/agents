@@ -8,6 +8,7 @@ import { runMcpAdd } from './commands/mcp-add.js'
 import { runMcpImport } from './commands/mcp-import.js'
 import { runMcpList } from './commands/mcp-list.js'
 import { runMcpRemove } from './commands/mcp-remove.js'
+import { runMcpSelect } from './commands/mcp-select.js'
 import { runMcpTest } from './commands/mcp-test.js'
 import { runReset } from './commands/reset.js'
 import { runStart } from './commands/start.js'
@@ -322,6 +323,18 @@ async function main(): Promise<void> {
         ignoreMissing: Boolean(opts.ignoreMissing),
         noSync: Boolean(opts.noSync),
         global: Boolean(opts.global)
+      })
+    })
+
+  mcp
+    .command('select')
+    .description('Choose which global MCP servers to enable for this project')
+    .option('--path <dir>', 'Target project directory', process.cwd())
+    .option('--no-sync', 'Skip automatic sync after update', false)
+    .action(async (opts: { path: string; noSync: boolean }) => {
+      await runMcpSelect({
+        projectRoot: resolvePath(opts.path),
+        noSync: Boolean(opts.noSync)
       })
     })
 

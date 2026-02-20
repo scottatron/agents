@@ -16,6 +16,7 @@ export interface McpServerEntry {
   localOverride?: Partial<McpServerDefinition>
   hasLocalOverride: boolean
   origin: McpServerOrigin
+  hasProjectOverride: boolean
   globalServer?: McpServerDefinition
 }
 
@@ -168,7 +169,8 @@ export function listMcpEntries(state: McpState): McpServerEntry[] {
 
     // The effective base server is the merge of global + project
     const baseServer = deepMerge(globalServer ?? {}, projectServer ?? {}) as McpServerDefinition
-    const origin: McpServerOrigin = projectServer ? 'project' : 'global'
+    const origin: McpServerOrigin = globalServer ? 'global' : 'project'
+    const hasProjectOverride = Boolean(globalServer && projectServer)
 
     return {
       name,
@@ -177,6 +179,7 @@ export function listMcpEntries(state: McpState): McpServerEntry[] {
       localOverride,
       hasLocalOverride: hasMeaningfulOverride(localOverride),
       origin,
+      hasProjectOverride,
       globalServer
     }
   })
