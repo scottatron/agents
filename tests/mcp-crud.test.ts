@@ -1,13 +1,23 @@
 import os from 'node:os'
 import path from 'node:path'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createDefaultAgentsConfig, saveAgentsConfig } from '../src/core/config.js'
 import { loadMcpState, removeMcpServer, upsertMcpServers } from '../src/core/mcpCrud.js'
 
 const tempDirs: string[] = []
+let originalGlobalConfig: string | undefined
+
+beforeEach(() => {
+  originalGlobalConfig = process.env.AGENTS_GLOBAL_CONFIG
+})
 
 afterEach(async () => {
+  if (originalGlobalConfig === undefined) {
+    delete process.env.AGENTS_GLOBAL_CONFIG
+  } else {
+    process.env.AGENTS_GLOBAL_CONFIG = originalGlobalConfig
+  }
   for (const dir of tempDirs.splice(0, tempDirs.length)) {
     await rm(dir, { recursive: true, force: true })
   }
@@ -16,6 +26,8 @@ afterEach(async () => {
 async function setupProject(): Promise<string> {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'agents-mcp-crud-'))
   tempDirs.push(projectRoot)
+  // Point global config to a non-existent file in the temp dir to isolate from real ~/.agents/global.json
+  process.env.AGENTS_GLOBAL_CONFIG = path.join(projectRoot, '.agents', 'global.json')
   await saveAgentsConfig(projectRoot, createDefaultAgentsConfig())
   await writeFile(path.join(projectRoot, '.agents', 'local.json'), JSON.stringify({ mcpServers: {} }, null, 2))
   return projectRoot
