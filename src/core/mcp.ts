@@ -5,7 +5,7 @@ import type {
   ResolvedMcpServer,
   ResolvedRegistry
 } from '../types.js'
-import { loadAgentsConfig } from './config.js'
+import { loadAgentsConfig, loadGlobalConfig } from './config.js'
 import { pathExists, readJson } from './fs.js'
 import { getProjectPaths } from './paths.js'
 
@@ -39,11 +39,13 @@ export async function loadLocalOverrides(projectRoot: string): Promise<LocalOver
 export async function loadResolvedRegistry(projectRoot: string): Promise<ResolvedRegistry> {
   const config = await loadAgentsConfig(projectRoot)
   const local = await loadLocalOverrides(projectRoot)
+  const global = await loadGlobalConfig()
 
   return resolveFromConfigAndLocal({
     projectRoot,
     servers: config.mcp.servers,
-    local
+    local,
+    globalServers: global.mcpServers
   })
 }
 
@@ -51,8 +53,9 @@ export function resolveFromConfigAndLocal(input: {
   projectRoot: string
   servers: Record<string, McpServerDefinition>
   local: LocalOverridesFile
+  globalServers?: Record<string, McpServerDefinition>
 }): ResolvedRegistry {
-  const { projectRoot, servers, local } = input
+  const { projectRoot, servers, local, globalServers = {} } = input
 
   const warnings: string[] = []
   const missingRequiredEnv: string[] = []
@@ -71,10 +74,12 @@ export function resolveFromConfigAndLocal(input: {
   const selectedServerNames: string[] = []
   const localOverrides = local?.mcpServers ?? {}
 
-  for (const name of Object.keys(servers).sort((a, b) => a.localeCompare(b))) {
-    const base = servers[name]
+  const allNames = new Set([...Object.keys(globalServers), ...Object.keys(servers)])
+  for (const name of [...allNames].sort((a, b) => a.localeCompare(b))) {
+    const globalBase = globalServers[name]
+    const projectBase = servers[name]
     const override = localOverrides[name]
-    const merged = deepMerge(base ?? {}, override ?? {}) as McpServerDefinition
+    const merged = deepMerge(deepMerge(globalBase ?? {}, projectBase ?? {}), override ?? {}) as McpServerDefinition
 
     if (!merged.transport) {
       warnings.push(`MCP server "${name}" is invalid: missing transport.`)
@@ -155,7 +160,7 @@ function resolveServer(
 
   return {
     name,
-    transport: server.transport,
+    transport: server.transport!,
     command: resolveValue(server.command),
     args: server.args?.map((item) => resolveValue(item) ?? item),
     url: resolveValue(server.url),
