@@ -1,11 +1,12 @@
-import { loadAgentsConfig, saveAgentsConfig } from './config.js'
+import { loadAgentsConfig, loadGlobalConfig, saveAgentsConfig, saveGlobalConfig } from './config.js'
 import { pathExists, readJson, writeJsonAtomic } from './fs.js'
 import { getProjectPaths } from './paths.js'
-import type { AgentsConfig, LocalOverridesFile, McpServerDefinition } from '../types.js'
+import type { AgentsConfig, GlobalMcpConfig, LocalOverridesFile, McpServerDefinition, McpServerOrigin } from '../types.js'
 
 export interface McpState {
   config: AgentsConfig
   local: LocalOverridesFile
+  global: GlobalMcpConfig
 }
 
 export interface McpServerEntry {
@@ -14,6 +15,8 @@ export interface McpServerEntry {
   mergedServer: McpServerDefinition
   localOverride?: Partial<McpServerDefinition>
   hasLocalOverride: boolean
+  origin: McpServerOrigin
+  globalServer?: McpServerDefinition
 }
 
 export interface McpServerUpsertInput {
@@ -31,12 +34,15 @@ export async function loadMcpState(projectRoot: string): Promise<McpState> {
     local = await readJson<LocalOverridesFile>(paths.agentsLocal)
   }
 
+  const global = await loadGlobalConfig()
+
   return {
     config,
     local: {
       mcpServers: typeof local.mcpServers === 'object' && local.mcpServers !== null ? local.mcpServers : {},
       meta: typeof local.meta === 'object' && local.meta !== null ? local.meta : undefined
-    }
+    },
+    global
   }
 }
 
@@ -47,11 +53,42 @@ export async function saveMcpState(projectRoot: string, state: McpState): Promis
 }
 
 export async function upsertMcpServers(args: {
-  projectRoot: string
+  projectRoot?: string
   updates: McpServerUpsertInput[]
   replace: boolean
+  global?: boolean
 }): Promise<{ created: string[]; updated: string[] }> {
-  const state = await loadMcpState(args.projectRoot)
+  if (args.global) {
+    const globalConfig = await loadGlobalConfig()
+    const created: string[] = []
+    const updated: string[] = []
+
+    for (const update of args.updates) {
+      const exists = Object.prototype.hasOwnProperty.call(globalConfig.mcpServers, update.name)
+      if (exists && !args.replace) {
+        throw new Error(`MCP server "${update.name}" already exists in global config. Use --replace to overwrite.`)
+      }
+    }
+
+    for (const update of args.updates) {
+      const exists = Object.prototype.hasOwnProperty.call(globalConfig.mcpServers, update.name)
+      globalConfig.mcpServers[update.name] = update.server
+      if (exists) {
+        updated.push(update.name)
+      } else {
+        created.push(update.name)
+      }
+    }
+
+    await saveGlobalConfig(globalConfig)
+
+    return {
+      created: created.sort((a, b) => a.localeCompare(b)),
+      updated: updated.sort((a, b) => a.localeCompare(b))
+    }
+  }
+
+  const state = await loadMcpState(args.projectRoot!)
   const created: string[] = []
   const updated: string[] = []
 
@@ -79,7 +116,7 @@ export async function upsertMcpServers(args: {
     }
   }
 
-  await saveMcpState(args.projectRoot, state)
+  await saveMcpState(args.projectRoot!, state)
 
   return {
     created: created.sort((a, b) => a.localeCompare(b)),
@@ -88,11 +125,24 @@ export async function upsertMcpServers(args: {
 }
 
 export async function removeMcpServer(args: {
-  projectRoot: string
+  projectRoot?: string
   name: string
   ignoreMissing: boolean
+  global?: boolean
 }): Promise<boolean> {
-  const state = await loadMcpState(args.projectRoot)
+  if (args.global) {
+    const globalConfig = await loadGlobalConfig()
+    const exists = Object.prototype.hasOwnProperty.call(globalConfig.mcpServers, args.name)
+    if (!exists) {
+      if (args.ignoreMissing) return false
+      throw new Error(`MCP server "${args.name}" does not exist in global config.`)
+    }
+    delete globalConfig.mcpServers[args.name]
+    await saveGlobalConfig(globalConfig)
+    return true
+  }
+
+  const state = await loadMcpState(args.projectRoot!)
   const exists = Object.prototype.hasOwnProperty.call(state.config.mcp.servers, args.name)
   if (!exists) {
     if (args.ignoreMissing) return false
@@ -101,21 +151,33 @@ export async function removeMcpServer(args: {
 
   delete state.config.mcp.servers[args.name]
   delete state.local.mcpServers[args.name]
-  await saveMcpState(args.projectRoot, state)
+  await saveMcpState(args.projectRoot!, state)
   return true
 }
 
 export function listMcpEntries(state: McpState): McpServerEntry[] {
-  const names = Object.keys(state.config.mcp.servers).sort((a, b) => a.localeCompare(b))
+  const globalServers = state.global?.mcpServers ?? {}
+  const projectServers = state.config.mcp.servers
+  const allNames = new Set([...Object.keys(globalServers), ...Object.keys(projectServers)])
+  const names = [...allNames].sort((a, b) => a.localeCompare(b))
+
   return names.map((name) => {
-    const server = state.config.mcp.servers[name]
+    const globalServer = globalServers[name]
+    const projectServer = projectServers[name]
     const localOverride = state.local.mcpServers[name]
+
+    // The effective base server is the merge of global + project
+    const baseServer = deepMerge(globalServer ?? {}, projectServer ?? {}) as McpServerDefinition
+    const origin: McpServerOrigin = projectServer ? 'project' : 'global'
+
     return {
       name,
-      server,
-      mergedServer: mergeServerWithLocal(server, localOverride),
+      server: baseServer,
+      mergedServer: mergeServerWithLocal(baseServer, localOverride),
       localOverride,
-      hasLocalOverride: hasMeaningfulOverride(localOverride)
+      hasLocalOverride: hasMeaningfulOverride(localOverride),
+      origin,
+      globalServer
     }
   })
 }
