@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { ensureDir, pathExists, readJson, writeJsonAtomic } from './fs.js'
-import { getProjectPaths } from './paths.js'
-import type { AgentsConfig, IntegrationName, McpServerDefinition, SyncMode } from '../types.js'
+import { getGlobalConfigPath, getProjectPaths } from './paths.js'
+import type { AgentsConfig, GlobalMcpConfig, IntegrationName, McpServerDefinition, SyncMode } from '../types.js'
 import { AGENTS_SCHEMA_VERSION } from '../types.js'
 
 export const DEFAULT_VSCODE_HIDDEN_PATHS = [
@@ -144,6 +144,23 @@ export async function saveAgentsConfig(projectRoot: string, config: AgentsConfig
   const paths = getProjectPaths(projectRoot)
   await ensureDir(path.dirname(paths.agentsConfig))
   await writeJsonAtomic(paths.agentsConfig, config)
+}
+
+export async function loadGlobalConfig(): Promise<GlobalMcpConfig> {
+  const globalPath = getGlobalConfigPath()
+  if (!(await pathExists(globalPath))) {
+    return { mcpServers: {} }
+  }
+  const parsed = await readJson<GlobalMcpConfig>(globalPath)
+  return {
+    mcpServers: typeof parsed.mcpServers === 'object' && parsed.mcpServers !== null ? parsed.mcpServers : {}
+  }
+}
+
+export async function saveGlobalConfig(config: GlobalMcpConfig): Promise<void> {
+  const globalPath = getGlobalConfigPath()
+  await ensureDir(path.dirname(globalPath))
+  await writeJsonAtomic(globalPath, config)
 }
 
 // Compatibility aliases for existing command imports.
