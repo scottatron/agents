@@ -193,7 +193,7 @@ async function main(): Promise<void> {
       })
     })
 
-  const mcp = program.command('mcp').description('Manage project MCP servers in .agents/agents.json')
+  const mcp = program.command('mcp').description('Manage MCP servers (project .agents/agents.json or global ~/.agents/global.json)')
 
   mcp
     .command('list')
@@ -226,6 +226,7 @@ async function main(): Promise<void> {
     .option('--replace', 'Replace existing server with same name', false)
     .option('--no-sync', 'Skip automatic sync after update', false)
     .option('--non-interactive', 'Disable interactive prompts', false)
+    .option('--global', 'Add to global config (~/.agents/global.json)', false)
     .action(
       async (name: string | undefined, opts: {
         path: string
@@ -244,6 +245,7 @@ async function main(): Promise<void> {
         replace: boolean
         noSync: boolean
         nonInteractive: boolean
+        global: boolean
       }) => {
         await runMcpAdd({
           projectRoot: resolvePath(opts.path),
@@ -262,7 +264,8 @@ async function main(): Promise<void> {
           disabled: Boolean(opts.disabled),
           replace: Boolean(opts.replace),
           noSync: Boolean(opts.noSync),
-          nonInteractive: Boolean(opts.nonInteractive)
+          nonInteractive: Boolean(opts.nonInteractive),
+          global: Boolean(opts.global)
         })
       },
     )
@@ -311,12 +314,14 @@ async function main(): Promise<void> {
     .option('--path <dir>', 'Target project directory', process.cwd())
     .option('--ignore-missing', 'Do not fail if server does not exist', false)
     .option('--no-sync', 'Skip automatic sync after update', false)
-    .action(async (name: string, opts: { path: string; ignoreMissing: boolean; noSync: boolean }) => {
+    .option('--global', 'Remove from global config (~/.agents/global.json)', false)
+    .action(async (name: string, opts: { path: string; ignoreMissing: boolean; noSync: boolean; global: boolean }) => {
       await runMcpRemove({
         projectRoot: resolvePath(opts.path),
         name,
         ignoreMissing: Boolean(opts.ignoreMissing),
-        noSync: Boolean(opts.noSync)
+        noSync: Boolean(opts.noSync),
+        global: Boolean(opts.global)
       })
     })
 

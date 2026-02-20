@@ -37,6 +37,7 @@ export interface McpAddOptions {
   replace: boolean
   noSync: boolean
   nonInteractive: boolean
+  global: boolean
 }
 
 export async function runMcpAdd(options: McpAddOptions): Promise<void> {
@@ -55,7 +56,7 @@ export async function runMcpAdd(options: McpAddOptions): Promise<void> {
     return
   }
 
-  const config = await loadAgentsConfig(options.projectRoot)
+  const config = options.global ? undefined : await loadAgentsConfig(options.projectRoot)
 
   let name = nameInput ?? ''
   let transport = options.transport ? validateTransport(options.transport) : undefined
@@ -114,7 +115,7 @@ export async function runMcpAdd(options: McpAddOptions): Promise<void> {
   }
 
   const parsedTargets = parseTargetOptions(options.targets)
-  const defaultTargets = resolveDefaultTargets(config)
+  const defaultTargets = options.global ? { targets: [] as IntegrationName[], warning: undefined } : resolveDefaultTargets(config!)
   const targets: IntegrationName[] = parsedTargets.length > 0 ? parsedTargets : defaultTargets.targets
 
   const envMap = toMap(options.env, 'env', (key) => validateEnvKey(key, 'environment variable'))
@@ -162,16 +163,19 @@ export async function runMcpAdd(options: McpAddOptions): Promise<void> {
   const spin = ui.spinner()
   spin.start(`Adding MCP server "${name}"...`)
 
+  const hasSecrets = hasMeaningfulSecrets(split.localOverride)
+
   const upserted = await upsertMcpServers({
-    projectRoot: options.projectRoot,
+    projectRoot: options.global ? undefined : options.projectRoot,
     updates: [
       {
         name,
         server: split.publicServer,
-        localOverride: split.localOverride
+        localOverride: options.global ? undefined : split.localOverride
       }
     ],
-    replace: options.replace
+    replace: options.replace,
+    global: options.global
   })
 
   const warnings: string[] = []
@@ -179,7 +183,11 @@ export async function runMcpAdd(options: McpAddOptions): Promise<void> {
     warnings.push(defaultTargets.warning)
   }
 
-  if (!options.noSync) {
+  if (options.global && hasSecrets) {
+    warnings.push(`Secrets are not stored in global config. Add secret values in per-project .agents/local.json.`)
+  }
+
+  if (!options.noSync && !options.global) {
     const sync = await performSync({
       projectRoot: options.projectRoot,
       check: false,
@@ -193,7 +201,9 @@ export async function runMcpAdd(options: McpAddOptions): Promise<void> {
   const action = upserted.updated.includes(name) ? 'Updated' : 'Added'
   ui.success(`${action} MCP server: ${name}`)
 
-  if (options.noSync) {
+  if (options.global) {
+    ui.dim('Global server — sync skipped (takes effect on next per-project sync)')
+  } else if (options.noSync) {
     ui.dim('Skipped sync (--no-sync)')
   }
 
@@ -206,6 +216,11 @@ export async function runMcpAdd(options: McpAddOptions): Promise<void> {
       }
     }
   }
+}
+
+function hasMeaningfulSecrets(localOverride: Partial<McpServerDefinition> | undefined): boolean {
+  if (!localOverride || typeof localOverride !== 'object') return false
+  return Object.entries(localOverride).some(([, entry]) => entry !== undefined)
 }
 
 function ensureNoInlineAddFlagsForUrl(options: McpAddOptions): void {

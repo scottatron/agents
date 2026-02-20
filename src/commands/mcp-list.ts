@@ -22,7 +22,8 @@ export async function runMcpList(options: McpListOptions): Promise<void> {
       enabled: entry.server.enabled !== false,
       targets: entry.server.targets ?? [],
       hasLocalOverride: entry.hasLocalOverride,
-      description: entry.server.description ?? null
+      description: entry.server.description ?? null,
+      origin: entry.origin
     }))
   }
 
@@ -46,10 +47,13 @@ export async function runMcpList(options: McpListOptions): Promise<void> {
     const parts: string[] = []
 
     // Transport type
-    parts.push(server.transport)
+    if (server.transport) parts.push(server.transport)
 
     // Targets
     parts.push(`targets: ${targets}`)
+
+    // Origin
+    parts.push(server.origin)
 
     // Status indicators
     if (!server.enabled) {

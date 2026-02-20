@@ -9,6 +9,7 @@ export interface McpRemoveOptions {
   name: string
   ignoreMissing: boolean
   noSync: boolean
+  global: boolean
 }
 
 export async function runMcpRemove(options: McpRemoveOptions): Promise<void> {
@@ -18,9 +19,10 @@ export async function runMcpRemove(options: McpRemoveOptions): Promise<void> {
   spin.start(`Removing MCP server "${options.name}"...`)
 
   const removed = await removeMcpServer({
-    projectRoot: options.projectRoot,
+    projectRoot: options.global ? undefined : options.projectRoot,
     name: options.name,
-    ignoreMissing: options.ignoreMissing
+    ignoreMissing: options.ignoreMissing,
+    global: options.global
   })
 
   if (!removed) {
@@ -30,7 +32,7 @@ export async function runMcpRemove(options: McpRemoveOptions): Promise<void> {
   }
 
   const warnings: string[] = []
-  if (!options.noSync) {
+  if (!options.noSync && !options.global) {
     const sync = await performSync({
       projectRoot: options.projectRoot,
       check: false,
@@ -43,7 +45,9 @@ export async function runMcpRemove(options: McpRemoveOptions): Promise<void> {
 
   ui.success(`Removed MCP server: ${options.name}`)
 
-  if (options.noSync) {
+  if (options.global) {
+    ui.dim('Global server — sync skipped (takes effect on next per-project sync)')
+  } else if (options.noSync) {
     ui.dim('Skipped sync (--no-sync)')
   }
 
