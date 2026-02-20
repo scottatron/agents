@@ -1,3 +1,4 @@
+import os from 'node:os'
 import path from 'node:path'
 
 export interface ProjectPaths {
@@ -90,4 +91,10 @@ export function getProjectPaths(projectRoot: string): ProjectPaths {
     cursorSkillsBridge: path.join(root, '.cursor', 'skills'),
     windsurfSkillsBridge: path.join(root, '.windsurf', 'skills')
   }
+}
+
+export function getGlobalConfigPath(): string {
+  const override = process.env.AGENTS_GLOBAL_CONFIG
+  if (override && override.trim().length > 0) return path.resolve(override)
+  return path.join(os.homedir(), '.agents', 'global.json')
 }

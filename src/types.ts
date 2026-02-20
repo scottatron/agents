@@ -41,7 +41,7 @@ export interface AgentsConfig {
 export interface McpServerDefinition {
   label?: string
   description?: string
-  transport: McpTransportType
+  transport?: McpTransportType
   command?: string
   args?: string[]
   url?: string
@@ -66,6 +66,12 @@ export interface LocalOverridesFile {
     updateCheck?: UpdateCheckMetadata
   }
 }
+
+export interface GlobalMcpConfig {
+  mcpServers: Record<string, McpServerDefinition>
+}
+
+export type McpServerOrigin = 'global' | 'project'
 
 export interface VscodeSettingsState {
   managedPaths: string[]
