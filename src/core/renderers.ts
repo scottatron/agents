@@ -175,6 +175,44 @@ export function renderWindsurfMcp(servers: ResolvedMcpServer[]): {
   return { mcpServers: out, warnings }
 }
 
+export function renderCopilotCliMcp(servers: ResolvedMcpServer[]): {
+  mcpServers: Record<string, unknown>
+  warnings: string[]
+} {
+  const warnings: string[] = []
+  const out: Record<string, unknown> = {}
+
+  for (const server of servers) {
+    if (server.transport === 'stdio') {
+      if (!server.command) {
+        warnings.push(`Server "${server.name}" has no command; skipped in Copilot CLI output.`)
+        continue
+      }
+      out[server.name] = {
+        type: 'local',
+        command: server.command,
+        args: server.args ?? [],
+        ...(server.env ? { env: server.env } : {}),
+        tools: ['*']
+      }
+      continue
+    }
+
+    if (!server.url) {
+      warnings.push(`Server "${server.name}" has no url; skipped in Copilot CLI output.`)
+      continue
+    }
+    out[server.name] = {
+      type: 'http',
+      url: server.url,
+      ...(server.headers ? { headers: server.headers } : {}),
+      tools: ['*']
+    }
+  }
+
+  return { mcpServers: out, warnings }
+}
+
 export function renderOpencodeMcp(servers: ResolvedMcpServer[]): {
   mcp: Record<string, unknown>
   warnings: string[]

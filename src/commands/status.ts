@@ -7,6 +7,7 @@ import { listDirNames, pathExists, readJson } from '../core/fs.js'
 import { loadResolvedRegistry } from '../core/mcp.js'
 import { getProjectPaths } from '../core/paths.js'
 import { getAntigravityGlobalMcpPath } from '../core/antigravity.js'
+import { getCopilotCliGlobalMcpPath } from '../core/copilotCli.js'
 import { getWindsurfGlobalMcpPath } from '../core/windsurf.js'
 import { commandExists, runCommand } from '../core/shell.js'
 import { getCodexTrustState } from '../core/trust.js'
@@ -54,10 +55,13 @@ export async function runStatus(options: StatusOptions): Promise<void> {
   const enabled = new Set(config.integrations.enabled)
   const antigravityGlobalPath = getAntigravityGlobalMcpPath()
   const antigravityGlobalLabel = toHomeRelativePath(antigravityGlobalPath)
+  const copilotCliGlobalPath = getCopilotCliGlobalMcpPath()
+  const copilotCliGlobalLabel = toHomeRelativePath(copilotCliGlobalPath)
   const windsurfGlobalPath = getWindsurfGlobalMcpPath()
   const windsurfGlobalLabel = toHomeRelativePath(windsurfGlobalPath)
   const expectedCodexServers = resolved.serversByTarget.codex.map((server) => server.name)
   const expectedCursorServers = resolved.serversByTarget.cursor.map((server) => server.name)
+  const expectedCopilotCliServers = resolved.serversByTarget.copilot_cli.map((server) => server.name)
   const expectedWindsurfServers = resolved.serversByTarget.windsurf.map((server) => server.name)
   const expectedOpencodeServers = resolved.serversByTarget.opencode.map((server) => server.name)
 
@@ -76,6 +80,9 @@ export async function runStatus(options: StatusOptions): Promise<void> {
   }
   if (enabled.has('copilot_vscode')) {
     files['.vscode/mcp.json'] = await pathExists(paths.vscodeMcp)
+  }
+  if (enabled.has('copilot_cli')) {
+    files[copilotCliGlobalLabel] = await pathExists(copilotCliGlobalPath)
   }
   if (enabled.has('cursor')) {
     files['.cursor/mcp.json'] = await pathExists(paths.cursorMcp)
@@ -109,6 +116,9 @@ export async function runStatus(options: StatusOptions): Promise<void> {
     if (enabled.has('claude')) probes.claude = probeClaude(options.projectRoot)
     if (enabled.has('gemini')) probes.gemini = probeGemini(options.projectRoot)
     if (enabled.has('copilot_vscode')) probes.copilot_vscode = await probeCopilot(paths.vscodeMcp)
+    if (enabled.has('copilot_cli')) {
+      probes.copilot_cli = await probeCopilotCli(copilotCliGlobalPath, copilotCliGlobalLabel, expectedCopilotCliServers)
+    }
     if (enabled.has('cursor')) probes.cursor = probeCursor(options.projectRoot, expectedCursorServers)
     if (enabled.has('antigravity')) {
       probes.antigravity = await probeAntigravity(antigravityGlobalPath, antigravityGlobalLabel)
@@ -161,7 +171,7 @@ export async function runStatus(options: StatusOptions): Promise<void> {
     ui.keyValue('MCP', `${output.mcp.configured} configured, ${output.mcp.localOverrides} local override(s)`)
     ui.keyValue('Selected MCP', ui.formatList(output.selectedMcpServers))
 
-    const compactProbeOrder = ['codex', 'claude', 'gemini', 'copilot_vscode', 'cursor', 'antigravity', 'windsurf', 'opencode']
+    const compactProbeOrder = ['codex', 'claude', 'gemini', 'copilot_vscode', 'copilot_cli', 'cursor', 'antigravity', 'windsurf', 'opencode']
     const compactProbes = compactProbeOrder
       .filter((name) => Boolean(output.probes[name]))
       .map((name) => `${name}: ${output.probes[name]}`)
@@ -268,6 +278,22 @@ async function probeCopilot(vscodeMcpPath: string): Promise<string> {
     return `${count} server(s) configured`
   } catch {
     return 'invalid JSON'
+  }
+}
+
+async function probeCopilotCli(globalPath: string, label: string, expectedServerNames: string[]): Promise<string> {
+  if (!(await pathExists(globalPath))) return `missing ${label}`
+
+  try {
+    const parsed = await readJson<{ mcpServers?: Record<string, unknown> }>(globalPath)
+    const names = Object.keys(parsed.mcpServers ?? {})
+    const missing = expectedServerNames.filter((name) => !names.includes(name))
+    if (missing.length > 0) {
+      return `${names.length} server(s) configured (${names.join(', ') || 'none'}); missing expected: ${missing.join(', ')}`
+    }
+    return `${names.length} server(s) configured`
+  } catch {
+    return `invalid ${label}`
   }
 }
 

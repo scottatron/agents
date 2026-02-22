@@ -4,6 +4,7 @@ import { loadAgentsConfig, saveAgentsConfig } from './config.js'
 import { loadResolvedRegistry } from './mcp.js'
 import { getProjectPaths } from './paths.js'
 import { getAntigravityGlobalMcpPath, normalizeAntigravityMcpPayload, readAntigravityMcp } from './antigravity.js'
+import { getCopilotCliGlobalMcpPath, normalizeCopilotCliMcpPayload } from './copilotCli.js'
 import { getWindsurfGlobalMcpPath, normalizeWindsurfMcpPayload } from './windsurf.js'
 import { normalizeOpencodeConfig } from './opencode.js'
 import { commandExists, runCommand } from './shell.js'
@@ -11,6 +12,7 @@ import { buildCodexConfig } from '../integrations/codex.js'
 import { toManagedClaudeName } from '../integrations/claude.js'
 import { buildGeminiPayload } from '../integrations/gemini.js'
 import { buildVscodeMcpPayload } from '../integrations/copilotVscode.js'
+import { buildCopilotCliPayload } from '../integrations/copilotCli.js'
 import { buildCursorPayload } from '../integrations/cursor.js'
 import { buildAntigravityPayload } from '../integrations/antigravity.js'
 import { buildWindsurfPayload } from '../integrations/windsurf.js'
@@ -76,6 +78,14 @@ export async function performSync(options: SyncOptions): Promise<SyncResult> {
     }
     if (enabled.has('copilot_vscode')) {
       await materializeCopilot(paths.generatedCopilot, paths.vscodeMcp, check, changed)
+    }
+    if (enabled.has('copilot_cli')) {
+      await materializeCopilotCliGlobal({
+        generatedPath: paths.generatedCopilotCli,
+        projectRoot,
+        check,
+        changed
+      })
     }
     if (enabled.has('cursor')) {
       await materializeCursor(paths.generatedCursor, paths.cursorMcp, check, changed)
@@ -203,6 +213,16 @@ async function syncGeneratedFiles(args: {
     changed,
   )
 
+  const copilotCli = buildCopilotCliPayload(resolvedByTarget.copilot_cli)
+  warnings.push(...copilotCli.warnings)
+  await writeManagedFile(
+    paths.generatedCopilotCli,
+    `${JSON.stringify(copilotCli.payload, null, 2)}\n`,
+    projectRoot,
+    check,
+    changed,
+  )
+
   const cursor = buildCursorPayload(resolvedByTarget.cursor)
   warnings.push(...cursor.warnings)
   await writeManagedFile(
@@ -310,6 +330,30 @@ async function materializeCopilot(generatedPath: string, targetPath: string, che
 async function materializeCursor(generatedPath: string, targetPath: string, check: boolean, changed: string[]): Promise<void> {
   const content = await readTextOrEmpty(generatedPath)
   await writeManagedFile(targetPath, content, path.dirname(path.dirname(targetPath)), check, changed)
+}
+
+async function materializeCopilotCliGlobal(args: {
+  generatedPath: string
+  projectRoot: string
+  check: boolean
+  changed: string[]
+}): Promise<void> {
+  const { generatedPath, projectRoot, check, changed } = args
+  const content = await readTextOrEmpty(generatedPath)
+  const globalPath = getCopilotCliGlobalMcpPath()
+
+  let normalized: Record<string, unknown> = {}
+  if (content.trim().length > 0) {
+    try {
+      normalized = normalizeCopilotCliMcpPayload(JSON.parse(content) as Record<string, unknown>)
+    } catch (error) {
+      throw new Error(
+        `Failed to parse generated Copilot CLI config: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+
+  await writeManagedFile(globalPath, `${JSON.stringify(normalized, null, 2)}\n`, projectRoot, check, changed)
 }
 
 async function materializeAntigravityGlobal(args: {

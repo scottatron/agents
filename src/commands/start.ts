@@ -126,6 +126,7 @@ export async function runStart(options: StartOptions): Promise<void> {
     `VS Code hide tool dirs: ${hideGeneratedInVscode ? 'enabled' : 'disabled'}`,
     `Codex trust: ${access.summaries.codex}`,
     `Cursor approval: ${access.summaries.cursor}`,
+    `Copilot CLI sync: ${access.summaries.copilot_cli}`,
     `Antigravity sync: ${access.summaries.antigravity}`,
     `Windsurf sync: ${access.summaries.windsurf}`,
     `OpenCode sync: ${access.summaries.opencode}`,
@@ -176,13 +177,14 @@ async function resolveIntegrationAccess(args: {
   autoApprove: boolean
 }): Promise<{
   integrationOptions: { cursorAutoApprove: boolean; antigravityGlobalSync: boolean }
-  summaries: { codex: string; cursor: string; antigravity: string; windsurf: string; opencode: string }
+  summaries: { codex: string; cursor: string; copilot_cli: string; antigravity: string; windsurf: string; opencode: string }
 }> {
   const { projectRoot, selectedIntegrations, interactive, autoApprove } = args
 
-  const summaries: { codex: string; cursor: string; antigravity: string; windsurf: string; opencode: string } = {
+  const summaries: { codex: string; cursor: string; copilot_cli: string; antigravity: string; windsurf: string; opencode: string } = {
     codex: 'not required',
     cursor: 'not required',
+    copilot_cli: 'not required',
     antigravity: 'not required',
     windsurf: 'not required',
     opencode: 'not required'
@@ -244,6 +246,10 @@ async function resolveIntegrationAccess(args: {
   if (selectedIntegrations.includes('antigravity')) {
     integrationOptions.antigravityGlobalSync = true
     summaries.antigravity = 'global user profile'
+  }
+
+  if (selectedIntegrations.includes('copilot_cli')) {
+    summaries.copilot_cli = 'global MCP (~/.copilot/mcp-config.json)'
   }
 
   if (selectedIntegrations.includes('windsurf')) {

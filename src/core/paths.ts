@@ -13,6 +13,7 @@ export interface ProjectPaths {
   generatedCodex: string
   generatedGemini: string
   generatedCopilot: string
+  generatedCopilotCli: string
   generatedCursor: string
   generatedAntigravity: string
   generatedWindsurf: string
@@ -61,6 +62,7 @@ export function getProjectPaths(projectRoot: string): ProjectPaths {
     generatedCodex: path.join(generatedDir, 'codex.config.toml'),
     generatedGemini: path.join(generatedDir, 'gemini.settings.json'),
     generatedCopilot: path.join(generatedDir, 'copilot.vscode.mcp.json'),
+    generatedCopilotCli: path.join(generatedDir, 'copilot.cli.mcp.json'),
     generatedCursor: path.join(generatedDir, 'cursor.mcp.json'),
     generatedAntigravity: path.join(generatedDir, 'antigravity.mcp.json'),
     generatedWindsurf: path.join(generatedDir, 'windsurf.mcp.json'),

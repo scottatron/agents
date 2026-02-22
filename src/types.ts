@@ -8,6 +8,7 @@ export type IntegrationName =
   | 'cursor'
   | 'antigravity'
   | 'windsurf'
+  | 'copilot_cli'
   | 'opencode'
 export type SyncMode = 'source-only' | 'commit-generated'
 
