@@ -229,14 +229,17 @@ function compareVersions(current: string, latest: string | null): number {
   const b = parseSemver(latest)
   if (!a || !b) return 0
   for (let i = 0; i < 3; i += 1) {
-    if (a[i] === b[i]) continue
-    return a[i] < b[i] ? -1 : 1
+    if (a.parts[i] === b.parts[i]) continue
+    return a.parts[i] < b.parts[i] ? -1 : 1
   }
+  // semver: a prerelease version has lower precedence than the release
+  if (a.prerelease && !b.prerelease) return -1
+  if (!a.prerelease && b.prerelease) return 1
   return 0
 }
 
-function parseSemver(value: string): [number, number, number] | null {
-  const match = value.trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/)
+function parseSemver(value: string): { parts: [number, number, number]; prerelease: boolean } | null {
+  const match = value.trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([\w.]+))?(?:\+.*)?$/)
   if (!match) return null
   const major = Number.parseInt(match[1], 10)
   const minor = Number.parseInt(match[2], 10)
@@ -244,7 +247,7 @@ function parseSemver(value: string): [number, number, number] | null {
   if (![major, minor, patch].every((part) => Number.isInteger(part))) {
     return null
   }
-  return [major, minor, patch]
+  return { parts: [major, minor, patch], prerelease: match[4] !== undefined }
 }
 
 function asObject(value: unknown): Record<string, unknown> | undefined {
