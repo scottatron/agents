@@ -8,11 +8,13 @@ export const DEFAULT_VSCODE_HIDDEN_PATHS = [
   '**/.codex',
   '**/.claude',
   '**/.gemini',
+  '**/.copilot',
   '**/.cursor',
   '**/.antigravity',
   '**/.windsurf',
   '**/.opencode',
   '**/opencode.json',
+  '**/.agents/bin',
   '**/.agents/generated'
 ]
 

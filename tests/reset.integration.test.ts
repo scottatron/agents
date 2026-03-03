@@ -19,15 +19,19 @@ describe('reset command', () => {
 
     try {
       await mkdir(path.join(projectRoot, '.agents', 'generated'), { recursive: true })
+      await mkdir(path.join(projectRoot, '.agents', 'bin'), { recursive: true })
       await mkdir(path.join(projectRoot, '.codex'), { recursive: true })
       await mkdir(path.join(projectRoot, '.gemini'), { recursive: true })
+      await mkdir(path.join(projectRoot, '.copilot'), { recursive: true })
       await mkdir(path.join(projectRoot, '.windsurf', 'skills'), { recursive: true })
       await mkdir(path.join(projectRoot, '.opencode', 'agent'), { recursive: true })
       await mkdir(path.join(projectRoot, '.vscode'), { recursive: true })
 
       await writeFile(path.join(projectRoot, '.agents', 'generated', 'x.txt'), 'x\n')
+      await writeFile(path.join(projectRoot, '.agents', 'bin', 'copilot'), 'x\n')
       await writeFile(path.join(projectRoot, '.codex', 'config.toml'), 'x\n')
       await writeFile(path.join(projectRoot, '.gemini', 'settings.json'), '{}\n')
+      await writeFile(path.join(projectRoot, '.copilot', 'mcp-config.json'), '{}\n')
       await writeFile(path.join(projectRoot, '.windsurf', 'skills', 'sample.md'), 'x\n')
       await writeFile(path.join(projectRoot, '.opencode', 'agent', 'sample.md'), 'x\n')
       await writeFile(path.join(projectRoot, 'opencode.json'), '{}\n')
@@ -36,8 +40,10 @@ describe('reset command', () => {
       await runReset({ projectRoot, localOnly: true, hard: false })
 
       expect(await exists(path.join(projectRoot, '.agents', 'generated'))).toBe(true)
+      expect(await exists(path.join(projectRoot, '.agents', 'bin'))).toBe(false)
       expect(await exists(path.join(projectRoot, '.codex'))).toBe(false)
       expect(await exists(path.join(projectRoot, '.gemini'))).toBe(false)
+      expect(await exists(path.join(projectRoot, '.copilot'))).toBe(false)
       expect(await exists(path.join(projectRoot, '.windsurf'))).toBe(false)
       expect(await exists(path.join(projectRoot, '.opencode'))).toBe(false)
       expect(await exists(path.join(projectRoot, 'opencode.json'))).toBe(false)

@@ -4,6 +4,7 @@ import path from 'node:path'
 export interface ProjectPaths {
   root: string
   agentsDir: string
+  agentsBinDir: string
   agentsConfig: string
   agentsLocal: string
   rootAgentsMd: string
@@ -26,13 +27,16 @@ export interface ProjectPaths {
   generatedSyncLock: string
   codexConfig: string
   geminiSettings: string
+  copilotCliMcp: string
   vscodeMcp: string
   vscodeSettings: string
   cursorMcp: string
   antigravityProjectMcp: string
   opencodeConfig: string
+  copilotCliWrapper: string
   codexDir: string
   geminiDir: string
+  copilotCliDir: string
   vscodeDir: string
   cursorDir: string
   antigravityDir: string
@@ -49,10 +53,12 @@ export function getProjectPaths(projectRoot: string): ProjectPaths {
   const root = path.resolve(projectRoot)
   const agentsDir = path.join(root, '.agents')
   const generatedDir = path.join(agentsDir, 'generated')
+  const agentsBinDir = path.join(agentsDir, 'bin')
 
   return {
     root,
     agentsDir,
+    agentsBinDir,
     agentsConfig: path.join(agentsDir, 'agents.json'),
     agentsLocal: path.join(agentsDir, 'local.json'),
     rootAgentsMd: path.join(root, 'AGENTS.md'),
@@ -75,13 +81,16 @@ export function getProjectPaths(projectRoot: string): ProjectPaths {
     generatedSyncLock: path.join(generatedDir, 'sync.lock'),
     codexConfig: path.join(root, '.codex', 'config.toml'),
     geminiSettings: path.join(root, '.gemini', 'settings.json'),
+    copilotCliMcp: path.join(root, '.copilot', 'mcp-config.json'),
     vscodeMcp: path.join(root, '.vscode', 'mcp.json'),
     vscodeSettings: path.join(root, '.vscode', 'settings.json'),
     cursorMcp: path.join(root, '.cursor', 'mcp.json'),
     antigravityProjectMcp: path.join(root, '.antigravity', 'mcp.json'),
     opencodeConfig: path.join(root, 'opencode.json'),
+    copilotCliWrapper: path.join(agentsBinDir, 'copilot'),
     codexDir: path.join(root, '.codex'),
     geminiDir: path.join(root, '.gemini'),
+    copilotCliDir: path.join(root, '.copilot'),
     vscodeDir: path.join(root, '.vscode'),
     cursorDir: path.join(root, '.cursor'),
     antigravityDir: path.join(root, '.antigravity'),

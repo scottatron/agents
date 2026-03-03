@@ -39,8 +39,10 @@ project/
 ├── .agents/
 │   ├── agents.json             # MCP servers (committed)
 │   ├── local.json              # Secrets (gitignored)
+│   ├── bin/                    # Generated wrappers (gitignored)
 │   ├── skills/                 # Workflows
 │   └── generated/              # Auto-generated (gitignored)
+├── .copilot/                   # Copilot CLI project MCP (gitignored)
 ├── .codex/                     # Materialized (gitignored)
 ├── .claude/                    # Materialized (gitignored)
 ├── .cursor/                    # Materialized (gitignored)
@@ -67,7 +69,8 @@ project/
 | **Claude** | `claude mcp add -s local` (CLI) |
 | **Gemini** | `.gemini/settings.json` |
 | **Cursor** | `.cursor/mcp.json` + CLI enable |
-| **Copilot** | `.vscode/mcp.json` |
+| **Copilot VS Code** | `.vscode/mcp.json` |
+| **Copilot CLI** | `.copilot/mcp-config.json` + `.agents/bin/copilot` wrapper (`--additional-mcp-config`) |
 | **Antigravity** | Global user profile `mcp.json` (not project-local) |
 | **Windsurf** | Global user profile `~/.codeium/windsurf/mcp_config.json` |
 | **OpenCode** | `opencode.json` (`mcp` block) |
@@ -82,10 +85,12 @@ project/
     "**/.claude": true,
     "**/.cursor": true,
     "**/.gemini": true,
+    "**/.copilot": true,
     "**/.antigravity": true,
     "**/.windsurf": true,
     "**/.opencode": true,
     "**/opencode.json": true,
+    "**/.agents/bin": true,
     "**/.agents/generated": true
   }
 }
@@ -178,8 +183,9 @@ project/
 
 **Gitignored:**
 - ❌ `.agents/local.json`
+- ❌ `.agents/bin/`
 - ❌ `.agents/generated/`
-- ❌ `.codex/`, `.claude/`, `.cursor/`, `.gemini/`
+- ❌ `.codex/`, `.claude/`, `.cursor/`, `.gemini/`, `.copilot/`
 - ❌ `.windsurf/`, `.opencode/`, `opencode.json`
 - ❌ legacy `.antigravity/` (if present from older versions)
 

@@ -30,7 +30,7 @@ describe('update command', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ version: '0.9.0' }), {
+        new Response(JSON.stringify({ version: '0.9.2' }), {
           status: 200,
           headers: { 'content-type': 'application/json' }
         })

@@ -7,7 +7,6 @@ import { listDirNames, pathExists, readJson } from '../core/fs.js'
 import { loadResolvedRegistry } from '../core/mcp.js'
 import { getProjectPaths } from '../core/paths.js'
 import { getAntigravityGlobalMcpPath } from '../core/antigravity.js'
-import { getCopilotCliGlobalMcpPath } from '../core/copilotCli.js'
 import { getWindsurfGlobalMcpPath } from '../core/windsurf.js'
 import { commandExists, runCommand } from '../core/shell.js'
 import { getCodexTrustState } from '../core/trust.js'
@@ -55,8 +54,6 @@ export async function runStatus(options: StatusOptions): Promise<void> {
   const enabled = new Set(config.integrations.enabled)
   const antigravityGlobalPath = getAntigravityGlobalMcpPath()
   const antigravityGlobalLabel = toHomeRelativePath(antigravityGlobalPath)
-  const copilotCliGlobalPath = getCopilotCliGlobalMcpPath()
-  const copilotCliGlobalLabel = toHomeRelativePath(copilotCliGlobalPath)
   const windsurfGlobalPath = getWindsurfGlobalMcpPath()
   const windsurfGlobalLabel = toHomeRelativePath(windsurfGlobalPath)
   const expectedCodexServers = resolved.serversByTarget.codex.map((server) => server.name)
@@ -82,7 +79,8 @@ export async function runStatus(options: StatusOptions): Promise<void> {
     files['.vscode/mcp.json'] = await pathExists(paths.vscodeMcp)
   }
   if (enabled.has('copilot_cli')) {
-    files[copilotCliGlobalLabel] = await pathExists(copilotCliGlobalPath)
+    files['.copilot/mcp-config.json'] = await pathExists(paths.copilotCliMcp)
+    files['.agents/bin/copilot'] = await pathExists(paths.copilotCliWrapper)
   }
   if (enabled.has('cursor')) {
     files['.cursor/mcp.json'] = await pathExists(paths.cursorMcp)
@@ -117,7 +115,7 @@ export async function runStatus(options: StatusOptions): Promise<void> {
     if (enabled.has('gemini')) probes.gemini = probeGemini(options.projectRoot)
     if (enabled.has('copilot_vscode')) probes.copilot_vscode = await probeCopilot(paths.vscodeMcp)
     if (enabled.has('copilot_cli')) {
-      probes.copilot_cli = await probeCopilotCli(copilotCliGlobalPath, copilotCliGlobalLabel, expectedCopilotCliServers)
+      probes.copilot_cli = await probeCopilotCli(paths.copilotCliMcp, expectedCopilotCliServers)
     }
     if (enabled.has('cursor')) probes.cursor = probeCursor(options.projectRoot, expectedCursorServers)
     if (enabled.has('antigravity')) {
@@ -281,11 +279,11 @@ async function probeCopilot(vscodeMcpPath: string): Promise<string> {
   }
 }
 
-async function probeCopilotCli(globalPath: string, label: string, expectedServerNames: string[]): Promise<string> {
-  if (!(await pathExists(globalPath))) return `missing ${label}`
+async function probeCopilotCli(projectPath: string, expectedServerNames: string[]): Promise<string> {
+  if (!(await pathExists(projectPath))) return 'missing .copilot/mcp-config.json'
 
   try {
-    const parsed = await readJson<{ mcpServers?: Record<string, unknown> }>(globalPath)
+    const parsed = await readJson<{ mcpServers?: Record<string, unknown> }>(projectPath)
     const names = Object.keys(parsed.mcpServers ?? {})
     const missing = expectedServerNames.filter((name) => !names.includes(name))
     if (missing.length > 0) {
@@ -293,7 +291,7 @@ async function probeCopilotCli(globalPath: string, label: string, expectedServer
     }
     return `${names.length} server(s) configured`
   } catch {
-    return `invalid ${label}`
+    return 'invalid .copilot/mcp-config.json'
   }
 }
 

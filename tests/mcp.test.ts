@@ -1,13 +1,24 @@
 import os from 'node:os'
 import path from 'node:path'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { loadResolvedRegistry } from '../src/core/mcp.js'
 import { createDefaultAgentsConfig } from '../src/core/config.js'
 
 const tempDirs: string[] = []
+let previousGlobalConfigPath: string | undefined
+
+beforeEach(() => {
+  previousGlobalConfigPath = process.env.AGENTS_GLOBAL_CONFIG
+})
 
 afterEach(async () => {
+  if (previousGlobalConfigPath === undefined) {
+    delete process.env.AGENTS_GLOBAL_CONFIG
+  } else {
+    process.env.AGENTS_GLOBAL_CONFIG = previousGlobalConfigPath
+  }
+
   for (const dir of tempDirs.splice(0, tempDirs.length)) {
     await rm(dir, { recursive: true, force: true })
   }
@@ -17,6 +28,7 @@ describe('loadResolvedRegistry', () => {
   it('resolves MCP servers from agents config + local override', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'agents-mcp-'))
     tempDirs.push(dir)
+    process.env.AGENTS_GLOBAL_CONFIG = path.join(dir, '.agents', 'global.json')
 
     await mkdir(path.join(dir, '.agents'), { recursive: true })
 
@@ -58,6 +70,7 @@ describe('loadResolvedRegistry', () => {
   it('skips server when required env is missing', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'agents-mcp-'))
     tempDirs.push(dir)
+    process.env.AGENTS_GLOBAL_CONFIG = path.join(dir, '.agents', 'global.json')
 
     await mkdir(path.join(dir, '.agents'), { recursive: true })
 
@@ -92,6 +105,7 @@ describe('loadResolvedRegistry', () => {
   it('expands legacy full target set to include newly added integrations', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'agents-mcp-'))
     tempDirs.push(dir)
+    process.env.AGENTS_GLOBAL_CONFIG = path.join(dir, '.agents', 'global.json')
 
     await mkdir(path.join(dir, '.agents'), { recursive: true })
 

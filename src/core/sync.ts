@@ -1,10 +1,11 @@
 import path from 'node:path'
+import { chmod } from 'node:fs/promises'
 import { ensureDir, pathExists, readJson, readTextOrEmpty, writeJsonAtomic, writeTextAtomic } from './fs.js'
 import { loadAgentsConfig, saveAgentsConfig } from './config.js'
 import { loadResolvedRegistry } from './mcp.js'
 import { getProjectPaths } from './paths.js'
 import { getAntigravityGlobalMcpPath, normalizeAntigravityMcpPayload, readAntigravityMcp } from './antigravity.js'
-import { getCopilotCliGlobalMcpPath, normalizeCopilotCliMcpPayload } from './copilotCli.js'
+import { normalizeCopilotCliMcpPayload, renderCopilotCliWrapperScript } from './copilotCli.js'
 import { getWindsurfGlobalMcpPath, normalizeWindsurfMcpPayload } from './windsurf.js'
 import { normalizeOpencodeConfig } from './opencode.js'
 import { commandExists, runCommand } from './shell.js'
@@ -80,8 +81,10 @@ export async function performSync(options: SyncOptions): Promise<SyncResult> {
       await materializeCopilot(paths.generatedCopilot, paths.vscodeMcp, check, changed)
     }
     if (enabled.has('copilot_cli')) {
-      await materializeCopilotCliGlobal({
+      await materializeCopilotCliProject({
         generatedPath: paths.generatedCopilotCli,
+        targetPath: paths.copilotCliMcp,
+        wrapperPath: paths.copilotCliWrapper,
         projectRoot,
         check,
         changed
@@ -332,15 +335,16 @@ async function materializeCursor(generatedPath: string, targetPath: string, chec
   await writeManagedFile(targetPath, content, path.dirname(path.dirname(targetPath)), check, changed)
 }
 
-async function materializeCopilotCliGlobal(args: {
+async function materializeCopilotCliProject(args: {
   generatedPath: string
+  targetPath: string
+  wrapperPath: string
   projectRoot: string
   check: boolean
   changed: string[]
 }): Promise<void> {
-  const { generatedPath, projectRoot, check, changed } = args
+  const { generatedPath, targetPath, wrapperPath, projectRoot, check, changed } = args
   const content = await readTextOrEmpty(generatedPath)
-  const globalPath = getCopilotCliGlobalMcpPath()
 
   let normalized: Record<string, unknown> = {}
   if (content.trim().length > 0) {
@@ -353,7 +357,12 @@ async function materializeCopilotCliGlobal(args: {
     }
   }
 
-  await writeManagedFile(globalPath, `${JSON.stringify(normalized, null, 2)}\n`, projectRoot, check, changed)
+  await writeManagedFile(targetPath, `${JSON.stringify(normalized, null, 2)}\n`, projectRoot, check, changed)
+  await writeManagedFile(wrapperPath, renderCopilotCliWrapperScript(), projectRoot, check, changed)
+
+  if (!check && await pathExists(wrapperPath)) {
+    await chmod(wrapperPath, 0o755)
+  }
 }
 
 async function materializeAntigravityGlobal(args: {

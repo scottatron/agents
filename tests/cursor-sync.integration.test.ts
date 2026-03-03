@@ -8,6 +8,7 @@ import { performSync } from '../src/core/sync.js'
 
 const tempDirs: string[] = []
 let previousPathEnv: string | undefined
+let previousGlobalConfigPath: string | undefined
 
 afterEach(async () => {
   if (previousPathEnv === undefined) {
@@ -16,6 +17,13 @@ afterEach(async () => {
     process.env.PATH = previousPathEnv
   }
   previousPathEnv = undefined
+
+  if (previousGlobalConfigPath === undefined) {
+    delete process.env.AGENTS_GLOBAL_CONFIG
+  } else {
+    process.env.AGENTS_GLOBAL_CONFIG = previousGlobalConfigPath
+  }
+  previousGlobalConfigPath = undefined
 
   for (const dir of tempDirs.splice(0, tempDirs.length)) {
     await rm(dir, { recursive: true, force: true })
@@ -28,6 +36,8 @@ describe('cursor sync idempotency', () => {
     const binDir = await mkdtemp(path.join(os.tmpdir(), 'agents-cursor-sync-bin-'))
     const callLog = path.join(binDir, 'cursor-calls.log')
     tempDirs.push(projectRoot, binDir)
+    previousGlobalConfigPath = process.env.AGENTS_GLOBAL_CONFIG
+    process.env.AGENTS_GLOBAL_CONFIG = path.join(projectRoot, '.agents', 'global.json')
 
     await runInit({ projectRoot, force: true })
     const config = await loadAgentsConfig(projectRoot)

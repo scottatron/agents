@@ -36,6 +36,7 @@ export async function runReset(options: ResetOptions): Promise<void> {
         paths.rootAgentsMd,
         paths.codexDir,
         paths.geminiDir,
+        paths.copilotCliDir,
         paths.cursorDir,
         paths.antigravityDir,
         paths.windsurfDir,
@@ -49,6 +50,8 @@ export async function runReset(options: ResetOptions): Promise<void> {
       ? [
           paths.codexDir,
           paths.geminiDir,
+          paths.copilotCliDir,
+          paths.agentsBinDir,
           paths.cursorDir,
           paths.antigravityDir,
           paths.windsurfDir,
@@ -61,8 +64,10 @@ export async function runReset(options: ResetOptions): Promise<void> {
         ]
       : [
           paths.generatedDir,
+          paths.agentsBinDir,
           paths.codexDir,
           paths.geminiDir,
+          paths.copilotCliDir,
           paths.cursorDir,
           paths.antigravityDir,
           paths.windsurfDir,

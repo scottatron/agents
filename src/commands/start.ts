@@ -249,7 +249,7 @@ async function resolveIntegrationAccess(args: {
   }
 
   if (selectedIntegrations.includes('copilot_cli')) {
-    summaries.copilot_cli = 'global MCP (~/.copilot/mcp-config.json)'
+    summaries.copilot_cli = 'project MCP (.copilot/mcp-config.json) + wrapper (.agents/bin/copilot)'
   }
 
   if (selectedIntegrations.includes('windsurf')) {
@@ -291,8 +291,10 @@ async function shouldOfferCleanup(projectRoot: string): Promise<boolean> {
   const legacyAgentDir = path.join(projectRoot, '.agent')
   const candidates = [
     paths.generatedDir,
+    paths.agentsBinDir,
     paths.codexDir,
     paths.geminiDir,
+    paths.copilotCliDir,
     paths.cursorDir,
     paths.antigravityDir,
     paths.windsurfDir,

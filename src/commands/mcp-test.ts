@@ -11,6 +11,7 @@ const ALL_INTEGRATIONS: IntegrationName[] = [
   'claude',
   'gemini',
   'copilot_vscode',
+  'copilot_cli',
   'cursor',
   'antigravity',
   'windsurf',
@@ -243,6 +244,7 @@ function runRuntimeChecks(entries: McpServerEntry[], projectRoot: string, timeou
       if (
         integration === 'codex'
         || integration === 'copilot_vscode'
+        || integration === 'copilot_cli'
         || integration === 'antigravity'
         || integration === 'windsurf'
         || integration === 'opencode'

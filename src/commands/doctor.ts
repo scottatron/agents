@@ -162,6 +162,7 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
         ...(enabled.has('codex') ? ['.codex/config.toml'] : []),
         ...(enabled.has('gemini') ? ['.gemini/settings.json'] : []),
         ...(enabled.has('copilot_vscode') ? ['.vscode/mcp.json'] : []),
+        ...(enabled.has('copilot_cli') ? ['.copilot/mcp-config.json'] : []),
         ...(enabled.has('cursor') ? ['.cursor/mcp.json'] : []),
         ...(enabled.has('claude') ? ['.claude/skills'] : []),
         ...(enabled.has('cursor') ? ['.cursor/skills'] : []),
@@ -171,7 +172,7 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
         ...(enabled.has('opencode') ? ['opencode.json'] : [])
       ]
     : []
-  trackedChecks.push('.agents/generated', '.agents/local.json')
+  trackedChecks.push('.agents/generated', '.agents/local.json', '.agents/bin')
   const trackedByGit: string[] = []
   for (const candidate of trackedChecks) {
     if (!isGitTracked(options.projectRoot, candidate)) continue
@@ -503,6 +504,7 @@ async function validateManagedConfigSyntax(
   await validateTomlIfExists(paths.generatedCodex, '.agents/generated/codex.config.toml', issues)
   await validateJsonIfExists(paths.generatedGemini, '.agents/generated/gemini.settings.json', issues)
   await validateJsonIfExists(paths.generatedCopilot, '.agents/generated/copilot.vscode.mcp.json', issues)
+  await validateJsonIfExists(paths.generatedCopilotCli, '.agents/generated/copilot.cli.mcp.json', issues)
   await validateJsonIfExists(paths.generatedCursor, '.agents/generated/cursor.mcp.json', issues)
   await validateJsonIfExists(paths.generatedAntigravity, '.agents/generated/antigravity.mcp.json', issues)
   await validateJsonIfExists(paths.generatedWindsurf, '.agents/generated/windsurf.mcp.json', issues)
@@ -517,6 +519,9 @@ async function validateManagedConfigSyntax(
   }
   if (enabledIntegrations.includes('copilot_vscode')) {
     await validateJsonIfExists(paths.vscodeMcp, '.vscode/mcp.json', issues)
+  }
+  if (enabledIntegrations.includes('copilot_cli')) {
+    await validateJsonIfExists(paths.copilotCliMcp, '.copilot/mcp-config.json', issues)
   }
   if (enabledIntegrations.includes('cursor')) {
     await validateJsonIfExists(paths.cursorMcp, '.cursor/mcp.json', issues)

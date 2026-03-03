@@ -116,6 +116,34 @@ describe('status command', () => {
     expect(parsed.files['opencode.json']).toBe(true)
     expect(Object.keys(parsed.files).some((key) => key.includes('mcp_config.json'))).toBe(true)
   })
+
+  it('includes copilot CLI project config and wrapper file states when enabled', async () => {
+    const projectRoot = await mkdtemp(path.join(os.tmpdir(), 'agents-status-'))
+    tempDirs.push(projectRoot)
+
+    await runInit({ projectRoot, force: true })
+    const config = await loadAgentsConfig(projectRoot)
+    config.integrations.enabled = ['copilot_cli']
+    await saveAgentsConfig(projectRoot, config)
+    await performSync({
+      projectRoot,
+      check: false,
+      verbose: false
+    })
+
+    const output = await captureStdout(async () => {
+      await runStatus({
+        projectRoot,
+        json: true,
+        verbose: false,
+        fast: true
+      })
+    })
+
+    const parsed = JSON.parse(output) as { files: Record<string, boolean> }
+    expect(parsed.files['.copilot/mcp-config.json']).toBe(true)
+    expect(parsed.files['.agents/bin/copilot']).toBe(true)
+  })
 })
 
 async function captureStdout(fn: () => Promise<void>): Promise<string> {

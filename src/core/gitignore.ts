@@ -3,10 +3,11 @@ import { readFile } from 'node:fs/promises'
 import type { SyncMode } from '../types.js'
 import { pathExists, removeIfExists, writeTextAtomic } from './fs.js'
 
-const BASE_MANAGED_ENTRIES = ['.agents/local.json', '.agents/generated/']
+const BASE_MANAGED_ENTRIES = ['.agents/local.json', '.agents/generated/', '.agents/bin/']
 const SOURCE_ONLY_ENTRIES = [
   '.codex/',
   '.gemini/',
+  '.copilot/',
   '.vscode/mcp.json',
   '.claude/skills',
   '.cursor/',
