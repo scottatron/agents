@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { chmod } from 'node:fs/promises'
-import { ensureDir, pathExists, readJson, readTextOrEmpty, writeJsonAtomic, writeTextAtomic } from './fs.js'
+import { ensureDir, pathExists, readJson, readTextOrEmpty, removeIfExists, writeJsonAtomic, writeTextAtomic } from './fs.js'
 import { loadAgentsConfig, saveAgentsConfig } from './config.js'
 import { loadResolvedRegistry } from './mcp.js'
 import { getProjectPaths } from './paths.js'
@@ -60,16 +60,16 @@ export async function performSync(options: SyncOptions): Promise<SyncResult> {
     }
 
     await ensureDir(paths.generatedDir)
+    const enabled = new Set(config.integrations.enabled)
 
     await syncGeneratedFiles({
       projectRoot,
       check,
       changed,
       warnings,
-      resolvedByTarget: resolved.serversByTarget
+      resolvedByTarget: resolved.serversByTarget,
+      enabledIntegrations: enabled
     })
-
-    const enabled = new Set(config.integrations.enabled)
 
     if (enabled.has('codex')) {
       await materializeCodex(paths.generatedCodex, paths.codexConfig, check, changed)
@@ -188,93 +188,130 @@ async function syncGeneratedFiles(args: {
   changed: string[]
   warnings: string[]
   resolvedByTarget: Record<IntegrationName, ResolvedMcpServer[]>
+  enabledIntegrations: ReadonlySet<IntegrationName>
 }): Promise<void> {
-  const { projectRoot, check, changed, warnings, resolvedByTarget } = args
+  const { projectRoot, check, changed, warnings, resolvedByTarget, enabledIntegrations } = args
   const paths = getProjectPaths(projectRoot)
 
-  const codex = buildCodexConfig(resolvedByTarget.codex)
-  warnings.push(...codex.warnings)
-  await writeManagedFile(paths.generatedCodex, codex.content, projectRoot, check, changed)
+  if (enabledIntegrations.has('codex')) {
+    const codex = buildCodexConfig(resolvedByTarget.codex)
+    warnings.push(...codex.warnings)
+    await writeManagedFile(paths.generatedCodex, codex.content, projectRoot, check, changed)
+  } else {
+    await removeManagedFile(paths.generatedCodex, projectRoot, check, changed)
+  }
 
-  const gemini = buildGeminiPayload(resolvedByTarget.gemini)
-  warnings.push(...gemini.warnings)
-  await writeManagedFile(
-    paths.generatedGemini,
-    `${JSON.stringify(gemini.payload, null, 2)}\n`,
-    projectRoot,
-    check,
-    changed,
-  )
+  if (enabledIntegrations.has('gemini')) {
+    const gemini = buildGeminiPayload(resolvedByTarget.gemini)
+    warnings.push(...gemini.warnings)
+    await writeManagedFile(
+      paths.generatedGemini,
+      `${JSON.stringify(gemini.payload, null, 2)}\n`,
+      projectRoot,
+      check,
+      changed,
+    )
+  } else {
+    await removeManagedFile(paths.generatedGemini, projectRoot, check, changed)
+  }
 
-  const copilot = buildVscodeMcpPayload(resolvedByTarget.copilot_vscode)
-  warnings.push(...copilot.warnings)
-  await writeManagedFile(
-    paths.generatedCopilot,
-    `${JSON.stringify(copilot.payload, null, 2)}\n`,
-    projectRoot,
-    check,
-    changed,
-  )
+  if (enabledIntegrations.has('copilot_vscode')) {
+    const copilot = buildVscodeMcpPayload(resolvedByTarget.copilot_vscode)
+    warnings.push(...copilot.warnings)
+    await writeManagedFile(
+      paths.generatedCopilot,
+      `${JSON.stringify(copilot.payload, null, 2)}\n`,
+      projectRoot,
+      check,
+      changed,
+    )
+  } else {
+    await removeManagedFile(paths.generatedCopilot, projectRoot, check, changed)
+  }
 
-  const copilotCli = buildCopilotCliPayload(resolvedByTarget.copilot_cli)
-  warnings.push(...copilotCli.warnings)
-  await writeManagedFile(
-    paths.generatedCopilotCli,
-    `${JSON.stringify(copilotCli.payload, null, 2)}\n`,
-    projectRoot,
-    check,
-    changed,
-  )
+  if (enabledIntegrations.has('copilot_cli')) {
+    const copilotCli = buildCopilotCliPayload(resolvedByTarget.copilot_cli)
+    warnings.push(...copilotCli.warnings)
+    await writeManagedFile(
+      paths.generatedCopilotCli,
+      `${JSON.stringify(copilotCli.payload, null, 2)}\n`,
+      projectRoot,
+      check,
+      changed,
+    )
+  } else {
+    await removeManagedFile(paths.generatedCopilotCli, projectRoot, check, changed)
+  }
 
-  const cursor = buildCursorPayload(resolvedByTarget.cursor)
-  warnings.push(...cursor.warnings)
-  await writeManagedFile(
-    paths.generatedCursor,
-    `${JSON.stringify(cursor.payload, null, 2)}\n`,
-    projectRoot,
-    check,
-    changed,
-  )
+  if (enabledIntegrations.has('cursor')) {
+    const cursor = buildCursorPayload(resolvedByTarget.cursor)
+    warnings.push(...cursor.warnings)
+    await writeManagedFile(
+      paths.generatedCursor,
+      `${JSON.stringify(cursor.payload, null, 2)}\n`,
+      projectRoot,
+      check,
+      changed,
+    )
+  } else {
+    await removeManagedFile(paths.generatedCursor, projectRoot, check, changed)
+  }
 
-  const antigravity = buildAntigravityPayload(resolvedByTarget.antigravity)
-  warnings.push(...antigravity.warnings)
-  await writeManagedFile(
-    paths.generatedAntigravity,
-    `${JSON.stringify(antigravity.payload, null, 2)}\n`,
-    projectRoot,
-    check,
-    changed,
-  )
+  if (enabledIntegrations.has('antigravity')) {
+    const antigravity = buildAntigravityPayload(resolvedByTarget.antigravity)
+    warnings.push(...antigravity.warnings)
+    await writeManagedFile(
+      paths.generatedAntigravity,
+      `${JSON.stringify(antigravity.payload, null, 2)}\n`,
+      projectRoot,
+      check,
+      changed,
+    )
+  } else {
+    await removeManagedFile(paths.generatedAntigravity, projectRoot, check, changed)
+  }
 
-  const windsurf = buildWindsurfPayload(resolvedByTarget.windsurf)
-  warnings.push(...windsurf.warnings)
-  await writeManagedFile(
-    paths.generatedWindsurf,
-    `${JSON.stringify(windsurf.payload, null, 2)}\n`,
-    projectRoot,
-    check,
-    changed,
-  )
+  if (enabledIntegrations.has('windsurf')) {
+    const windsurf = buildWindsurfPayload(resolvedByTarget.windsurf)
+    warnings.push(...windsurf.warnings)
+    await writeManagedFile(
+      paths.generatedWindsurf,
+      `${JSON.stringify(windsurf.payload, null, 2)}\n`,
+      projectRoot,
+      check,
+      changed,
+    )
+  } else {
+    await removeManagedFile(paths.generatedWindsurf, projectRoot, check, changed)
+  }
 
-  const opencode = buildOpencodePayload(resolvedByTarget.opencode)
-  warnings.push(...opencode.warnings)
-  await writeManagedFile(
-    paths.generatedOpencode,
-    `${JSON.stringify(opencode.payload, null, 2)}\n`,
-    projectRoot,
-    check,
-    changed,
-  )
+  if (enabledIntegrations.has('opencode')) {
+    const opencode = buildOpencodePayload(resolvedByTarget.opencode)
+    warnings.push(...opencode.warnings)
+    await writeManagedFile(
+      paths.generatedOpencode,
+      `${JSON.stringify(opencode.payload, null, 2)}\n`,
+      projectRoot,
+      check,
+      changed,
+    )
+  } else {
+    await removeManagedFile(paths.generatedOpencode, projectRoot, check, changed)
+  }
 
-  const claude = renderVscodeMcp(resolvedByTarget.claude)
-  warnings.push(...claude.warnings)
-  await writeManagedFile(
-    paths.generatedClaude,
-    `${JSON.stringify({ mcpServers: claude.servers }, null, 2)}\n`,
-    projectRoot,
-    check,
-    changed,
-  )
+  if (enabledIntegrations.has('claude')) {
+    const claude = renderVscodeMcp(resolvedByTarget.claude)
+    warnings.push(...claude.warnings)
+    await writeManagedFile(
+      paths.generatedClaude,
+      `${JSON.stringify({ mcpServers: claude.servers }, null, 2)}\n`,
+      projectRoot,
+      check,
+      changed,
+    )
+  } else {
+    await removeManagedFile(paths.generatedClaude, projectRoot, check, changed)
+  }
 }
 
 async function materializeCodex(generatedPath: string, targetPath: string, check: boolean, changed: string[]): Promise<void> {
@@ -739,6 +776,18 @@ async function writeManagedFile(
 
   if (check) return
   await writeTextAtomic(absolutePath, content)
+}
+
+async function removeManagedFile(
+  absolutePath: string,
+  projectRoot: string,
+  check: boolean,
+  changed: string[],
+): Promise<void> {
+  if (!(await pathExists(absolutePath))) return
+  changed.push(toChangedEntry(projectRoot, absolutePath))
+  if (check) return
+  await removeIfExists(absolutePath)
 }
 
 function toChangedEntry(projectRoot: string, absolutePath: string): string {

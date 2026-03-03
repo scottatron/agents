@@ -166,7 +166,7 @@ your-project/
     .windsurf/skills/ → .agents/skills│
 ```
 
-> **Git strategy:** By default only `.agents/agents.json`, `.agents/skills/`, and `AGENTS.md` are committed. Everything else is gitignored and regenerated with `agents sync`.
+> **Git strategy:** By default only `.agents/agents.json`, `.agents/skills/`, and `AGENTS.md` are committed. Everything else is gitignored and regenerated with `agents sync` (only for currently enabled integrations).
 
 ---
 

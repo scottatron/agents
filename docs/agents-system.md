@@ -142,6 +142,8 @@ project/
 3. Generate tool-specific configs
 4. Write atomically (temp + rename)
 5. Acquire lock (prevent race conditions)
+
+Generated integration files in `.agents/generated/` are scoped to currently enabled integrations.
 ```
 
 ## MCP Server Format
